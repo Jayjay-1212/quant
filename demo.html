@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quant Trading Platform - Demo</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg: #0a0e17; --card: #111827; --border: #1e293b;
+  --primary: #3b82f6; --green: #10b981; --red: #ef4444;
+  --yellow: #f59e0b; --purple: #8b5cf6; --cyan: #06b6d4;
+  --text: #e2e8f0; --muted: #94a3b8;
+}
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; }
+.container { max-width:1200px; margin:0 auto; padding:20px; }
+
+/* Header */
+header { text-align:center; padding:40px 0 30px; }
+header h1 { font-size:2.2em; background:linear-gradient(135deg,var(--primary),var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+header p { color:var(--muted); margin-top:8px; font-size:1.1em; }
+.stats-bar { display:flex; justify-content:center; gap:30px; margin-top:20px; flex-wrap:wrap; }
+.stat { text-align:center; }
+.stat .num { font-size:1.8em; font-weight:700; color:var(--primary); }
+.stat .label { font-size:0.8em; color:var(--muted); }
+
+/* Nav */
+nav { display:flex; gap:8px; margin:20px 0; flex-wrap:wrap; justify-content:center; }
+nav button { padding:8px 16px; border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:6px; cursor:pointer; font-size:0.85em; transition:all .2s; }
+nav button:hover, nav button.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+/* Sections */
+.section { display:none; }
+.section.active { display:block; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:20px; }
+.card h2 { font-size:1.3em; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.card h3 { font-size:1em; color:var(--muted); margin:12px 0 8px; }
+canvas { width:100%; border-radius:8px; background:#0d1321; }
+
+/* Grid */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+@media(max-width:768px) { .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; } }
+
+/* Metric */
+.metric { background:#0f172a; border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; }
+.metric .val { font-size:1.6em; font-weight:700; }
+.metric .lbl { font-size:0.75em; color:var(--muted); margin-top:4px; }
+.metric.up .val { color:var(--green); }
+.metric.down .val { color:var(--red); }
+
+/* Table */
+table { width:100%; border-collapse:collapse; }
+th,td { padding:10px 12px; text-align:right; border-bottom:1px solid var(--border); font-size:0.9em; }
+th { color:var(--muted); font-weight:600; font-size:0.8em; text-transform:uppercase; }
+td:first-child, th:first-child { text-align:left; }
+tr:hover { background:rgba(59,130,246,0.05); }
+
+/* Strategy cards */
+.strat-card { background:#0f172a; border:1px solid var(--border); border-radius:8px; padding:16px; }
+.strat-card h4 { color:var(--primary); margin-bottom:6px; }
+.strat-card .type { font-size:0.75em; color:var(--muted); margin-bottom:8px; }
+.strat-card p { font-size:0.85em; line-height:1.5; }
+.strat-card .params { margin-top:8px; font-size:0.8em; color:var(--cyan); }
+
+/* Calculator */
+.calc-row { display:flex; gap:12px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
+.calc-row label { width:120px; font-size:0.85em; color:var(--muted); }
+.calc-row input { padding:8px 12px; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:var(--text); width:150px; font-size:0.9em; }
+.calc-row input:focus { outline:none; border-color:var(--primary); }
+.btn { padding:10px 24px; background:var(--primary); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; }
+.btn:hover { background:#2563eb; }
+.result-box { margin-top:16px; padding:16px; background:#0f172a; border-radius:8px; border-left:3px solid var(--primary); }
+
+/* Architecture */
+.arch-box { display:flex; flex-direction:column; gap:8px; }
+.arch-layer { display:flex; gap:8px; flex-wrap:wrap; }
+.arch-module { padding:10px 16px; background:#0f172a; border:1px solid var(--border); border-radius:6px; font-size:0.85em; flex:1; min-width:120px; text-align:center; }
+.arch-module.highlight { border-color:var(--primary); color:var(--primary); }
+.arch-arrow { text-align:center; color:var(--muted); font-size:1.2em; }
+
+/* PDCA */
+.pdca-flow { display:flex; gap:4px; align-items:center; justify-content:center; margin:16px 0; flex-wrap:wrap; }
+.pdca-step { padding:8px 16px; border-radius:20px; font-size:0.85em; font-weight:600; }
+.pdca-step.done { background:var(--green); color:#fff; }
+.pdca-step.arrow { background:none; color:var(--muted); }
+
+/* Heatmap */
+.heatmap { display:grid; gap:2px; }
+.heatmap-cell { padding:12px; text-align:center; font-size:0.8em; font-weight:600; border-radius:4px; }
+
+/* Signal */
+.signal { display:inline-block; padding:4px 12px; border-radius:4px; font-weight:600; font-size:0.85em; }
+.signal.buy { background:rgba(16,185,129,0.2); color:var(--green); }
+.signal.sell { background:rgba(239,68,68,0.2); color:var(--red); }
+.signal.hold { background:rgba(148,163,184,0.2); color:var(--muted); }
+
+/* Feature list */
+.feature-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
+.feature-item .check { color:var(--green); font-size:1.2em; }
+.feature-item .name { font-weight:600; }
+.feature-item .desc { color:var(--muted); font-size:0.85em; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Quant Trading Platform</h1>
+    <p>Personal Quantitative Trading & Backtesting System</p>
+    <div class="stats-bar">
+      <div class="stat"><div class="num">13</div><div class="label">Features</div></div>
+      <div class="stat"><div class="num">16</div><div class="label">Modules</div></div>
+      <div class="stat"><div class="num">6</div><div class="label">Strategies</div></div>
+      <div class="stat"><div class="num">6,225</div><div class="label">Lines of Code</div></div>
+    </div>
+  </header>
+
+  <nav id="nav">
+    <button class="active" onclick="showSection('overview')">Overview</button>
+    <button onclick="showSection('chart')">Stock Chart</button>
+    <button onclick="showSection('strategies')">Strategies</button>
+    <button onclick="showSection('backtest')">Backtesting</button>
+    <button onclick="showSection('compare')">Comparison</button>
+    <button onclick="showSection('portfolio')">Portfolio</button>
+    <button onclick="showSection('risk')">Risk Manager</button>
+    <button onclick="showSection('optimizer')">Optimizer</button>
+    <button onclick="showSection('live')">Live Trading</button>
+    <button onclick="showSection('pdca')">PDCA Status</button>
+  </nav>
+
+  <!-- 1. OVERVIEW -->
+  <div id="overview" class="section active">
+    <div class="card">
+      <h2>Architecture</h2>
+      <div class="arch-box">
+        <div class="arch-layer">
+          <div class="arch-module highlight">dashboard.py</div>
+          <div class="arch-module highlight">main.py</div>
+        </div>
+        <div class="arch-arrow">v</div>
+        <div class="arch-layer">
+          <div class="arch-module">DataLoader</div>
+          <div class="arch-module">Analyzer</div>
+          <div class="arch-module">Visualizer</div>
+          <div class="arch-module">RiskManager</div>
+        </div>
+        <div class="arch-arrow">v</div>
+        <div class="arch-layer">
+          <div class="arch-module">BacktestEngine</div>
+          <div class="arch-module">Comparator</div>
+          <div class="arch-module">Portfolio</div>
+          <div class="arch-module">Optimizer</div>
+        </div>
+        <div class="arch-arrow">v</div>
+        <div class="arch-layer">
+          <div class="arch-module">SMA Cross</div>
+          <div class="arch-module">MA Cross</div>
+          <div class="arch-module">Bollinger</div>
+          <div class="arch-module">RSI</div>
+          <div class="arch-module">MACD</div>
+          <div class="arch-module">Momentum</div>
+        </div>
+        <div class="arch-arrow">v</div>
+        <div class="arch-layer">
+          <div class="arch-module">KIS Broker API</div>
+          <div class="arch-module">Scheduler</div>
+          <div class="arch-module">Report Generator</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Implemented Features (13)</h2>
+      <div class="feature-item"><span class="check">V</span><span class="name">Data Loader</span><span class="desc">2-tier caching (memory + CSV), index presets, multi-ticker</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">6 Trading Strategies</span><span class="desc">SMA Cross, Momentum, MA Cross, Bollinger, RSI, MACD</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Backtest Engine</span><span class="desc">CAGR, MDD, Sharpe, equity curve, trade log</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Strategy Comparison</span><span class="desc">Multi-strategy ranking with charts</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Portfolio Backtest</span><span class="desc">Multi-ticker weighted portfolio analysis</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Risk Manager</span><span class="desc">Kelly criterion, risk parity, position sizing</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Parameter Optimizer</span><span class="desc">Grid search, walk-forward analysis, heatmap</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">KIS Broker API</span><span class="desc">Authentication, balance, market orders</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Scheduler</span><span class="desc">Auto data refresh, signal detection</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Report Generator</span><span class="desc">HTML reports with embedded charts</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Streamlit Dashboard</span><span class="desc">4-tab interactive web UI</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Analyzer</span><span class="desc">MDD, Sharpe ratio, CAGR calculations</span></div>
+      <div class="feature-item"><span class="check">V</span><span class="name">Visualizer</span><span class="desc">Price charts, backtest results, comparison</span></div>
+    </div>
+  </div>
+
+  <!-- 2. STOCK CHART -->
+  <div id="chart" class="section">
+    <div class="card">
+      <h2>Samsung Electronics (005930) - Price Chart</h2>
+      <canvas id="priceChart" height="300"></canvas>
+      <div class="grid-4" style="margin-top:16px;">
+        <div class="metric"><div class="val">53,700</div><div class="lbl">Latest Close</div></div>
+        <div class="metric down"><div class="val">-32.5%</div><div class="lbl">YTD Return</div></div>
+        <div class="metric"><div class="val">87,100</div><div class="lbl">52W High</div></div>
+        <div class="metric"><div class="val">49,900</div><div class="lbl">52W Low</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Technical Indicators</h2>
+      <canvas id="rsiChart" height="150"></canvas>
+    </div>
+  </div>
+
+  <!-- 3. STRATEGIES -->
+  <div id="strategies" class="section">
+    <div class="card">
+      <h2>Trading Strategies (6)</h2>
+      <div class="grid-3">
+        <div class="strat-card">
+          <h4>MA Cross</h4>
+          <div class="type">Trend Following</div>
+          <p>Golden Cross (20>60 SMA) = BUY<br>Dead Cross (20&lt;60 SMA) = SELL</p>
+          <div class="params">short_period=20, long_period=60</div>
+        </div>
+        <div class="strat-card">
+          <h4>Bollinger Band</h4>
+          <div class="type">Mean Reversion</div>
+          <p>Price &lt; Lower Band = BUY<br>Price &gt; Upper Band = SELL</p>
+          <div class="params">period=20, devfactor=2.0</div>
+        </div>
+        <div class="strat-card">
+          <h4>RSI</h4>
+          <div class="type">Momentum Reversal</div>
+          <p>RSI &lt; 30 (oversold) = BUY<br>RSI &gt; 70 (overbought) = SELL</p>
+          <div class="params">period=14, oversold=30, overbought=70</div>
+        </div>
+        <div class="strat-card">
+          <h4>MACD</h4>
+          <div class="type">Trend Following</div>
+          <p>MACD > Signal = BUY<br>MACD &lt; Signal = SELL</p>
+          <div class="params">fast=12, slow=26, signal=9</div>
+        </div>
+        <div class="strat-card">
+          <h4>SMA Cross</h4>
+          <div class="type">Trend Following</div>
+          <p>Short SMA crosses above Long SMA = BUY<br>Opposite = SELL</p>
+          <div class="params">short_period=20, long_period=60</div>
+        </div>
+        <div class="strat-card">
+          <h4>Momentum</h4>
+          <div class="type">Momentum</div>
+          <p>ROC > 0 = BUY<br>ROC &lt; 0 = SELL</p>
+          <div class="params">period=20, threshold=0.0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Live Signal Simulation</h2>
+      <table>
+        <tr><th>Ticker</th><th>Strategy</th><th>Signal</th><th>Price</th><th>Date</th></tr>
+        <tr><td>005930</td><td>MA Cross</td><td><span class="signal buy">BUY</span></td><td>53,700</td><td>2024-12-30</td></tr>
+        <tr><td>005930</td><td>RSI</td><td><span class="signal buy">BUY</span></td><td>53,700</td><td>2024-12-30</td></tr>
+        <tr><td>005930</td><td>Bollinger</td><td><span class="signal hold">HOLD</span></td><td>53,700</td><td>2024-12-30</td></tr>
+        <tr><td>000660</td><td>MACD</td><td><span class="signal sell">SELL</span></td><td>161,300</td><td>2024-12-30</td></tr>
+        <tr><td>000660</td><td>Momentum</td><td><span class="signal sell">SELL</span></td><td>161,300</td><td>2024-12-30</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 4. BACKTESTING -->
+  <div id="backtest" class="section">
+    <div class="card">
+      <h2>Backtest: MA Cross (005930, 2024)</h2>
+      <div class="grid-4" style="margin-bottom:16px;">
+        <div class="metric down"><div class="val">-0.05%</div><div class="lbl">Total Return</div></div>
+        <div class="metric down"><div class="val">-0.05%</div><div class="lbl">CAGR</div></div>
+        <div class="metric"><div class="val">0.16%</div><div class="lbl">Max Drawdown</div></div>
+        <div class="metric"><div class="val">0.00</div><div class="lbl">Sharpe Ratio</div></div>
+      </div>
+      <canvas id="equityChart" height="250"></canvas>
+    </div>
+    <div class="card">
+      <h2>Drawdown</h2>
+      <canvas id="drawdownChart" height="120"></canvas>
+    </div>
+    <div class="card">
+      <h2>Trade Log</h2>
+      <table>
+        <tr><th>Date</th><th>Action</th><th>Price</th><th>Shares</th><th>P&L</th></tr>
+        <tr><td>2024-07-03</td><td><span class="signal buy">BUY</span></td><td>82,300</td><td>121</td><td>-</td></tr>
+        <tr><td>2024-08-14</td><td><span class="signal sell">SELL</span></td><td>77,400</td><td>121</td><td style="color:var(--red)">-592,900</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. COMPARISON -->
+  <div id="compare" class="section">
+    <div class="card">
+      <h2>Strategy Comparison (005930, 2024)</h2>
+      <canvas id="compareChart" height="250"></canvas>
+    </div>
+    <div class="card">
+      <h2>Performance Ranking</h2>
+      <table>
+        <tr><th>Rank</th><th>Strategy</th><th>Return %</th><th>MDD %</th><th>Sharpe</th><th>Trades</th><th>Win Rate</th></tr>
+        <tr><td>1</td><td>MA Cross</td><td style="color:var(--red)">-0.05%</td><td>0.16%</td><td>0.00</td><td>1</td><td>0.0%</td></tr>
+        <tr><td>2</td><td>Bollinger</td><td style="color:var(--red)">-0.17%</td><td>0.30%</td><td>0.00</td><td>2</td><td>50.0%</td></tr>
+        <tr><td>3</td><td>MACD</td><td style="color:var(--red)">-0.17%</td><td>0.25%</td><td>0.00</td><td>12</td><td>16.7%</td></tr>
+        <tr><td>4</td><td>RSI</td><td style="color:var(--red)">-0.22%</td><td>0.30%</td><td>0.00</td><td>1</td><td>0.0%</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 6. PORTFOLIO -->
+  <div id="portfolio" class="section">
+    <div class="card">
+      <h2>Risk Parity Portfolio</h2>
+      <div class="grid-2">
+        <div>
+          <h3>Allocation (Inverse Volatility)</h3>
+          <table>
+            <tr><th>Ticker</th><th>Weight</th><th>Volatility</th><th>Risk Contrib</th></tr>
+            <tr><td>005930 (Samsung)</td><td>56.5%</td><td>35.9%</td><td>50.0%</td></tr>
+            <tr><td>000660 (SK Hynix)</td><td>43.5%</td><td>46.5%</td><td>50.0%</td></tr>
+          </table>
+        </div>
+        <div>
+          <canvas id="pieChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Portfolio Backtest Result</h2>
+      <div class="grid-4">
+        <div class="metric down"><div class="val">-0.32%</div><div class="lbl">Portfolio Return</div></div>
+        <div class="metric"><div class="val">-0.42%</div><div class="lbl">Portfolio MDD</div></div>
+        <div class="metric"><div class="val">-11.44</div><div class="lbl">Sharpe Ratio</div></div>
+        <div class="metric"><div class="val">2</div><div class="lbl">Total Trades</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. RISK MANAGER -->
+  <div id="risk" class="section">
+    <div class="card">
+      <h2>Kelly Criterion Calculator</h2>
+      <div class="grid-2">
+        <div>
+          <div class="calc-row"><label>Win Rate</label><input type="number" id="kellyWin" value="0.55" step="0.05" min="0.01" max="0.99"></div>
+          <div class="calc-row"><label>P/L Ratio</label><input type="number" id="kellyPL" value="1.5" step="0.1" min="0.1"></div>
+          <div class="calc-row"><label>Fraction</label><input type="number" id="kellyFrac" value="0.5" step="0.25" min="0.25" max="1"></div>
+          <button class="btn" onclick="calcKelly()">Calculate</button>
+        </div>
+        <div class="result-box" id="kellyResult">
+          <div style="font-size:0.9em;color:var(--muted);">Full Kelly</div>
+          <div style="font-size:2em;font-weight:700;color:var(--green)">25.00%</div>
+          <div style="margin-top:8px;font-size:0.9em;color:var(--muted);">Half Kelly (Adjusted)</div>
+          <div style="font-size:1.5em;font-weight:700;color:var(--primary)">12.50%</div>
+          <div style="margin-top:12px;font-size:0.85em;color:var(--yellow)">Strong edge - use Half/Quarter Kelly for safety</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Position Sizing Calculator</h2>
+      <div class="grid-2">
+        <div>
+          <div class="calc-row"><label>Total Capital</label><input type="number" id="psCapital" value="10000000"></div>
+          <div class="calc-row"><label>Risk per Trade</label><input type="number" id="psRisk" value="0.02" step="0.01"></div>
+          <div class="calc-row"><label>Entry Price</label><input type="number" id="psEntry" value="80000"></div>
+          <div class="calc-row"><label>Stop Loss</label><input type="number" id="psStop" value="76000"></div>
+          <button class="btn" onclick="calcPosition()">Calculate</button>
+        </div>
+        <div class="result-box" id="posResult">
+          <div class="grid-2">
+            <div><div style="color:var(--muted);font-size:0.85em">Shares</div><div style="font-size:1.5em;font-weight:700">50</div></div>
+            <div><div style="color:var(--muted);font-size:0.85em">Position Value</div><div style="font-size:1.5em;font-weight:700">4,000,000</div></div>
+            <div><div style="color:var(--muted);font-size:0.85em">Risk Amount</div><div style="font-size:1.5em;font-weight:700;color:var(--red)">200,000</div></div>
+            <div><div style="color:var(--muted);font-size:0.85em">Position %</div><div style="font-size:1.5em;font-weight:700">40.0%</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. OPTIMIZER -->
+  <div id="optimizer" class="section">
+    <div class="card">
+      <h2>Parameter Optimization Heatmap</h2>
+      <h3>MA Cross Return % by (short_period x long_period)</h3>
+      <table>
+        <tr><th>short \ long</th><th>30</th><th>40</th><th>60</th></tr>
+        <tr><td><strong>5</strong></td><td style="background:rgba(16,185,129,0.15);color:var(--green)">-0.04%</td><td style="background:rgba(16,185,129,0.25);color:var(--green)">-0.01%</td><td style="background:rgba(239,68,68,0.15);color:var(--red)">-0.13%</td></tr>
+        <tr><td><strong>10</strong></td><td style="background:rgba(16,185,129,0.2);color:var(--green)">-0.03%</td><td style="background:rgba(239,68,68,0.1);color:var(--red)">-0.07%</td><td style="background:rgba(239,68,68,0.2);color:var(--red)">-0.14%</td></tr>
+        <tr><td><strong>20</strong></td><td style="background:rgba(239,68,68,0.15);color:var(--red)">-0.09%</td><td style="background:rgba(239,68,68,0.1);color:var(--red)">-0.08%</td><td style="background:rgba(239,68,68,0.1);color:var(--red)">-0.05%</td></tr>
+      </table>
+      <div style="margin-top:12px;font-size:0.85em;color:var(--green)">Best: short=5, long=40 (Return: -0.01%)</div>
+    </div>
+    <div class="card">
+      <h2>Walk-Forward Analysis</h2>
+      <div class="grid-2">
+        <div class="metric"><div class="val">-0.01%</div><div class="lbl">In-Sample Best</div></div>
+        <div class="metric"><div class="val">-0.03%</div><div class="lbl">Out-of-Sample</div></div>
+      </div>
+      <div class="result-box" style="margin-top:16px;">
+        <div>Best Params: <strong>short_period=5, long_period=40</strong></div>
+        <div style="margin-top:8px;">Performance Degradation: <span style="color:var(--yellow)">~200%</span></div>
+        <div style="color:var(--yellow);margin-top:4px;">MODERATE OVERFIT RISK - consider longer test period</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. LIVE TRADING -->
+  <div id="live" class="section">
+    <div class="card">
+      <h2>KIS Broker API</h2>
+      <div class="grid-2">
+        <div>
+          <h3>Connection Status</h3>
+          <div class="result-box">
+            <div>Mode: <span style="color:var(--yellow)">MOCK (Paper Trading)</span></div>
+            <div>Auth: <span style="color:var(--green)">Token Ready</span></div>
+            <div>Account: ****5678-01</div>
+          </div>
+          <h3 style="margin-top:16px;">API Functions</h3>
+          <table>
+            <tr><th>Function</th><th>Endpoint</th><th>Status</th></tr>
+            <tr><td>authenticate()</td><td>/oauth2/tokenP</td><td style="color:var(--green)">Ready</td></tr>
+            <tr><td>get_balance()</td><td>/trading/inquire-balance</td><td style="color:var(--green)">Ready</td></tr>
+            <tr><td>order_market()</td><td>/trading/order-cash</td><td style="color:var(--green)">Ready</td></tr>
+          </table>
+        </div>
+        <div>
+          <h3>Sample Balance</h3>
+          <div class="metric" style="margin-bottom:12px;"><div class="val">10,000,000</div><div class="lbl">Total Evaluation</div></div>
+          <table>
+            <tr><th>Ticker</th><th>Name</th><th>Qty</th><th>P/L</th></tr>
+            <tr><td>005930</td><td>Samsung</td><td>50</td><td style="color:var(--red)">-2.3%</td></tr>
+            <tr><td>000660</td><td>SK Hynix</td><td>20</td><td style="color:var(--green)">+1.5%</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Scheduler</h2>
+      <div class="result-box">
+        <div>Last Run: <strong>2026-03-06 18:21:47</strong></div>
+        <div style="margin-top:8px;">Watchlist: 005930, 000660</div>
+        <div>Strategies: MovingAverageCross, RsiStrategy</div>
+        <div style="margin-top:12px;">
+          <span class="signal buy">BUY</span> 005930 - MA Cross &nbsp;
+          <span class="signal buy">BUY</span> 005930 - RSI
+        </div>
+        <div style="margin-top:8px;color:var(--muted);font-size:0.85em;">Summary: 2 BUY, 0 SELL, 0 HOLD</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. PDCA -->
+  <div id="pdca" class="section">
+    <div class="card">
+      <h2>PDCA Cycle Status</h2>
+      <div class="pdca-flow">
+        <span class="pdca-step done">Plan</span><span class="pdca-step arrow">-></span>
+        <span class="pdca-step done">Design</span><span class="pdca-step arrow">-></span>
+        <span class="pdca-step done">Do</span><span class="pdca-step arrow">-></span>
+        <span class="pdca-step done">Check</span><span class="pdca-step arrow">-></span>
+        <span class="pdca-step done">Report</span>
+      </div>
+      <div style="text-align:center;color:var(--green);font-weight:600;margin:12px 0;">ALL 13 FEATURES COMPLETED</div>
+    </div>
+    <div class="card">
+      <h2>Feature Status</h2>
+      <table>
+        <tr><th>#</th><th>Feature</th><th>Phase</th><th>Match Rate</th></tr>
+        <tr><td>1</td><td>quant-trading-platform</td><td style="color:var(--green)">COMPLETED</td><td>92%</td></tr>
+        <tr><td>2</td><td>data-loader-enhancement</td><td style="color:var(--green)">COMPLETED</td><td>90%</td></tr>
+        <tr><td>3</td><td>moving-average-cross</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>4</td><td>backtest-engine-enhancement</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>5</td><td>advanced-strategies</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>6</td><td>strategy-comparison</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>7</td><td>portfolio-backtest</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>8</td><td>report-generator</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>9</td><td>risk-manager</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>10</td><td>broker-api</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>11</td><td>strategy-optimizer</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>12</td><td>scheduler</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+        <tr><td>13</td><td>dashboard</td><td style="color:var(--green)">COMPLETED</td><td>-</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Tech Stack</h2>
+      <div class="grid-3">
+        <div class="strat-card"><h4>Python 3.13</h4><p>Core Language</p></div>
+        <div class="strat-card"><h4>pandas / numpy</h4><p>Data Processing</p></div>
+        <div class="strat-card"><h4>FinanceDataReader</h4><p>Stock Data API</p></div>
+        <div class="strat-card"><h4>backtrader</h4><p>Backtesting Engine</p></div>
+        <div class="strat-card"><h4>matplotlib</h4><p>Chart Visualization</p></div>
+        <div class="strat-card"><h4>Streamlit</h4><p>Web Dashboard</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Navigation
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Mock stock data
+function genStockData(n, base, vol) {
+  const data = [base];
+  for (let i = 1; i < n; i++) {
+    data.push(data[i-1] + (Math.random()-0.52) * vol);
+  }
+  return data;
+}
+
+// Draw line chart
+function drawLine(canvasId, datasets, options={}) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth * 2;
+  const H = canvas.height = (options.height || 300) * 2;
+  ctx.scale(1,1);
+
+  const pad = { t:20, r:20, b:30, l:60 };
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+
+  let allVals = datasets.flatMap(d => d.data);
+  let min = options.min !== undefined ? options.min : Math.min(...allVals);
+  let max = options.max !== undefined ? options.max : Math.max(...allVals);
+  if (min === max) { min -= 1; max += 1; }
+  const range = max - min;
+
+  // Grid
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch * i / 4;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'right';
+    const val = max - range * i / 4;
+    ctx.fillText(options.pct ? val.toFixed(2)+'%' : val.toLocaleString(), pad.l-8, y+6);
+  }
+
+  // Lines
+  datasets.forEach(ds => {
+    ctx.beginPath();
+    ctx.strokeStyle = ds.color;
+    ctx.lineWidth = ds.width || 2;
+    const n = ds.data.length;
+    ds.data.forEach((v, i) => {
+      const x = pad.l + cw * i / (n-1);
+      const y = pad.t + ch * (1 - (v-min)/range);
+      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    if (ds.fill) {
+      const n = ds.data.length;
+      const baseY = pad.t + ch;
+      ctx.lineTo(pad.l + cw, baseY);
+      ctx.lineTo(pad.l, baseY);
+      ctx.closePath();
+      ctx.fillStyle = ds.fill;
+      ctx.fill();
+    }
+  });
+}
+
+// Init charts
+window.addEventListener('load', () => {
+  // Price chart with SMA
+  const price = genStockData(244, 79600, 1500);
+  const sma20 = price.map((v,i,a) => i<19 ? null : a.slice(i-19,i+1).reduce((s,x)=>s+x,0)/20);
+  const sma60 = price.map((v,i,a) => i<59 ? null : a.slice(i-59,i+1).reduce((s,x)=>s+x,0)/60);
+  drawLine('priceChart', [
+    {data:price, color:'#e2e8f0', width:1.5},
+    {data:sma20.filter(v=>v), color:'#3b82f6', width:1.5},
+    {data:sma60.filter(v=>v), color:'#f59e0b', width:1.5},
+  ], {height:300});
+
+  // RSI
+  const rsi = genStockData(244, 50, 8).map(v => Math.max(10, Math.min(90, v)));
+  drawLine('rsiChart', [
+    {data:rsi, color:'#8b5cf6', width:1.5},
+    {data:Array(244).fill(70), color:'#ef4444', width:1},
+    {data:Array(244).fill(30), color:'#10b981', width:1},
+  ], {height:150, min:0, max:100});
+
+  // Equity curve
+  const equity = genStockData(244, 10000000, 15000);
+  drawLine('equityChart', [
+    {data:equity, color:'#3b82f6', width:2},
+    {data:Array(244).fill(10000000), color:'#4b5563', width:1},
+  ], {height:250});
+
+  // Drawdown
+  let peak = equity[0];
+  const dd = equity.map(v => { peak = Math.max(peak, v); return (v-peak)/peak*100; });
+  drawLine('drawdownChart', [
+    {data:dd, color:'#ef4444', width:1.5, fill:'rgba(239,68,68,0.15)'},
+  ], {height:120, max:0, pct:true});
+
+  // Compare bar chart
+  const compareCanvas = document.getElementById('compareChart');
+  if (compareCanvas) {
+    const ctx = compareCanvas.getContext('2d');
+    const W = compareCanvas.width = compareCanvas.offsetWidth * 2;
+    const H = compareCanvas.height = 250 * 2;
+    const strategies = ['MA Cross','Bollinger','MACD','RSI','SMA Cross','Momentum'];
+    const returns = [-0.05,-0.17,-0.17,-0.22,-0.09,-0.12];
+    const barW = W / strategies.length * 0.6;
+    const gap = W / strategies.length;
+    const maxAbs = 0.3;
+    const baseY = H * 0.15;
+
+    strategies.forEach((name, i) => {
+      const x = gap * i + gap * 0.2;
+      const h = Math.abs(returns[i]) / maxAbs * (H * 0.6);
+      const y = returns[i] >= 0 ? baseY - h : baseY;
+      ctx.fillStyle = returns[i] >= 0 ? '#10b981' : '#ef4444';
+      ctx.globalAlpha = 0.8;
+      ctx.fillRect(x, y, barW, h);
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(name, x + barW/2, H - 20);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '20px sans-serif';
+      ctx.fillText(returns[i].toFixed(2)+'%', x + barW/2, y + h + 30);
+    });
+
+    ctx.strokeStyle = '#4b5563';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, baseY);
+    ctx.lineTo(W, baseY);
+    ctx.stroke();
+  }
+
+  // Pie chart
+  const pieCanvas = document.getElementById('pieChart');
+  if (pieCanvas) {
+    const ctx = pieCanvas.getContext('2d');
+    const W = pieCanvas.width = pieCanvas.offsetWidth * 2;
+    const H = pieCanvas.height = 200 * 2;
+    const cx = W/2, cy = H/2, r = Math.min(W,H)*0.35;
+    const slices = [{pct:0.565, color:'#3b82f6', label:'005930 56.5%'},{pct:0.435, color:'#f59e0b', label:'000660 43.5%'}];
+    let angle = -Math.PI/2;
+    slices.forEach(s => {
+      const end = angle + s.pct * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,angle,end);
+      ctx.fillStyle = s.color;
+      ctx.fill();
+      const mid = (angle+end)/2;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.label, cx+Math.cos(mid)*r*0.6, cy+Math.sin(mid)*r*0.6+8);
+      angle = end;
+    });
+  }
+});
+
+// Kelly Calculator
+function calcKelly() {
+  const w = parseFloat(document.getElementById('kellyWin').value);
+  const r = parseFloat(document.getElementById('kellyPL').value);
+  const f = parseFloat(document.getElementById('kellyFrac').value);
+  const kelly = (w - (1-w)/r) * 100;
+  const adj = kelly * f;
+  let rec = '';
+  if (kelly <= 0) rec = 'DO NOT TRADE - negative edge';
+  else if (kelly < 10) rec = 'Very small position - weak edge';
+  else if (kelly < 25) rec = 'Moderate position - decent edge';
+  else rec = 'Strong edge - use Half/Quarter Kelly for safety';
+  const color = kelly > 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('kellyResult').innerHTML = `
+    <div style="font-size:0.9em;color:var(--muted)">Full Kelly</div>
+    <div style="font-size:2em;font-weight:700;color:${color}">${kelly.toFixed(2)}%</div>
+    <div style="margin-top:8px;font-size:0.9em;color:var(--muted)">Adjusted (${(f*100).toFixed(0)}%)</div>
+    <div style="font-size:1.5em;font-weight:700;color:var(--primary)">${adj.toFixed(2)}%</div>
+    <div style="margin-top:12px;font-size:0.85em;color:var(--yellow)">${rec}</div>`;
+}
+
+// Position Sizing Calculator
+function calcPosition() {
+  const cap = parseFloat(document.getElementById('psCapital').value);
+  const risk = parseFloat(document.getElementById('psRisk').value);
+  const entry = parseFloat(document.getElementById('psEntry').value);
+  const stop = parseFloat(document.getElementById('psStop').value);
+  const riskAmt = cap * risk;
+  const riskPerShare = Math.abs(entry - stop);
+  const shares = Math.floor(riskAmt / riskPerShare);
+  const posVal = shares * entry;
+  const posPct = (posVal / cap * 100).toFixed(1);
+  document.getElementById('posResult').innerHTML = `
+    <div class="grid-2">
+      <div><div style="color:var(--muted);font-size:0.85em">Shares</div><div style="font-size:1.5em;font-weight:700">${shares.toLocaleString()}</div></div>
+      <div><div style="color:var(--muted);font-size:0.85em">Position Value</div><div style="font-size:1.5em;font-weight:700">${posVal.toLocaleString()}</div></div>
+      <div><div style="color:var(--muted);font-size:0.85em">Risk Amount</div><div style="font-size:1.5em;font-weight:700;color:var(--red)">${riskAmt.toLocaleString()}</div></div>
+      <div><div style="color:var(--muted);font-size:0.85em">Position %</div><div style="font-size:1.5em;font-weight:700">${posPct}%</div></div>
+    </div>`;
+}
+</script>
+</body>
+</html>

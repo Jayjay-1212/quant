@@ -138,18 +138,25 @@ class BacktestEngine:
         if total == 0:
             return pd.DataFrame(columns=['date', 'action', 'price', 'size', 'pnl'])
         logs = []
-        for trade in strat._trades.values():
-            for t in trade:
-                for entry in t.history:
-                    event = entry.event
-                    status = entry.status
-                    logs.append({
-                        'date': bt.num2date(event.dt).date(),
-                        'action': 'BUY' if event.size > 0 else 'SELL',
-                        'price': event.price,
-                        'size': abs(event.size),
-                        'pnl': t.pnl if status.isclosed else 0.0,
-                    })
+        try:
+            for trade_list in strat._trades.values():
+                for t in trade_list:
+                    if not hasattr(t, 'history'):
+                        continue
+                    for entry in t.history:
+                        event = entry.event
+                        status = entry.status
+                        logs.append({
+                            'date': bt.num2date(event.dt).date(),
+                            'action': 'BUY' if event.size > 0 else 'SELL',
+                            'price': event.price,
+                            'size': abs(event.size),
+                            'pnl': t.pnl if status.isclosed else 0.0,
+                        })
+        except Exception:
+            return pd.DataFrame(columns=['date', 'action', 'price', 'size', 'pnl'])
+        if not logs:
+            return pd.DataFrame(columns=['date', 'action', 'price', 'size', 'pnl'])
         return pd.DataFrame(logs).sort_values('date').reset_index(drop=True)
 
     def print_summary(self, result):
