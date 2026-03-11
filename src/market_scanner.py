@@ -1,14 +1,28 @@
 """KRX 마켓 스캐너 - 시가총액 기반 종목 필터링 + 신호 감지"""
 
+import os
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
 
 
 class MarketScanner:
-    """KRX 전체 종목에서 시총 필터링 후 전략 신호를 스캔"""
+    """KRX 전체 종목에서 시총 필터링 후 전략 신호를 스캔
+
+    데이터 소스 우선순위:
+    1. data/krx_stocks.csv (fetch_krx_stocks.py로 수집한 전체 리스트)
+    2. FinanceDataReader 실시간 조회
+    3. KOSPI_MAJOR / KOSDAQ_MAJOR 하드코딩 fallback
+    """
+
+    # CSV 파일 경로
+    _CSV_PATH = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'data', 'krx_stocks.csv'
+    )
 
     # 주요 종목 사전 (KRX API 접근 불가 시 fallback)
+    # 값: (이름, 시총_만원단위)
     KOSPI_MAJOR = {
         '005930': ('삼성전자', 400_0000_0000),      # 400조
         '000660': ('SK하이닉스', 150_0000_0000),     # 150조
@@ -76,32 +90,105 @@ class MarketScanner:
     }
 
     @classmethod
-    def get_stock_list(cls, market='ALL'):
-        """종목 리스트 반환 (ticker, name, market_cap_estimate)"""
+    def _load_from_csv(cls, market='ALL'):
+        """data/krx_stocks.csv에서 종목 리스트 로드
+
+        CSV 컬럼: Code, Name, Market, MarketCap (원 단위)
+        Returns DataFrame with columns: ticker, name, market, market_cap (만원), market_cap_조
+                or None if CSV not found / empty
+        """
+        if not os.path.exists(cls._CSV_PATH):
+            return None
+
+        try:
+            df = pd.read_csv(cls._CSV_PATH, dtype={'Code': str})
+            if df is None or len(df) == 0:
+                return None
+
+            # Market 필터
+            if market == 'KOSPI':
+                df = df[df['Market'] == 'KOSPI']
+            elif market == 'KOSDAQ':
+                df = df[df['Market'] == 'KOSDAQ']
+            # 'ALL' -> 전체
+
+            # CSV의 MarketCap은 원 단위 -> 만원으로 변환 (내부 기준)
+            market_cap_won = pd.to_numeric(df['MarketCap'], errors='coerce').fillna(0)
+            market_cap_만원 = market_cap_won / 10000
+
+            rows = pd.DataFrame({
+                'ticker': df['Code'].astype(str).str.zfill(6),
+                'name': df['Name'].astype(str),
+                'market': df['Market'].astype(str),
+                'market_cap': market_cap_만원,
+                'market_cap_조': (market_cap_만원 / 1_0000_0000).round(1),
+            })
+
+            rows = rows.sort_values('market_cap', ascending=False).reset_index(drop=True)
+            return rows
+
+        except Exception:
+            return None
+
+    @classmethod
+    def _load_from_hardcoded(cls, market='ALL'):
+        """하드코딩된 KOSPI_MAJOR / KOSDAQ_MAJOR에서 로드 (fallback)"""
         stocks = {}
         if market in ('ALL', 'KOSPI'):
-            stocks.update(cls.KOSPI_MAJOR)
+            for code, (name, mcap) in cls.KOSPI_MAJOR.items():
+                stocks[code] = (name, 'KOSPI', mcap)
         if market in ('ALL', 'KOSDAQ'):
-            stocks.update(cls.KOSDAQ_MAJOR)
-
-        # Try fetching live data from KRX
-        live = cls._fetch_krx_listing()
-        if live is not None and len(live) > 0:
-            stocks = {}
-            for _, row in live.iterrows():
-                stocks[row['Code']] = (row['Name'], row['Marcap'])
+            for code, (name, mcap) in cls.KOSDAQ_MAJOR.items():
+                stocks[code] = (name, 'KOSDAQ', mcap)
 
         rows = []
-        for code, (name, mcap) in stocks.items():
+        for code, (name, mkt, mcap) in stocks.items():
             rows.append({
                 'ticker': code,
                 'name': name,
+                'market': mkt,
                 'market_cap': mcap,
                 'market_cap_조': round(mcap / 1_0000_0000, 1),
             })
 
         df = pd.DataFrame(rows).sort_values('market_cap', ascending=False)
         return df.reset_index(drop=True)
+
+    @classmethod
+    def get_stock_list(cls, market='ALL'):
+        """종목 리스트 반환 (ticker, name, market, market_cap, market_cap_조)
+
+        우선순위:
+        1. data/krx_stocks.csv (캐시된 전체 리스트)
+        2. FinanceDataReader 실시간
+        3. 하드코딩된 주요 종목
+        """
+        # 1. CSV 캐시에서 로드
+        df = cls._load_from_csv(market)
+        if df is not None and len(df) > 0:
+            return df
+
+        # 2. FinanceDataReader 실시간
+        live = cls._fetch_krx_listing()
+        if live is not None and len(live) > 0:
+            stocks = {}
+            for _, row in live.iterrows():
+                stocks[row['Code']] = (row['Name'], 'KRX', row['Marcap'])
+
+            rows = []
+            for code, (name, mkt, mcap) in stocks.items():
+                rows.append({
+                    'ticker': code,
+                    'name': name,
+                    'market': mkt,
+                    'market_cap': mcap,
+                    'market_cap_조': round(mcap / 1_0000_0000, 1),
+                })
+            df = pd.DataFrame(rows).sort_values('market_cap', ascending=False)
+            return df.reset_index(drop=True)
+
+        # 3. 하드코딩 fallback
+        return cls._load_from_hardcoded(market)
 
     @classmethod
     def _fetch_krx_listing(cls):
